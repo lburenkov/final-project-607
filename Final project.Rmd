@@ -1,0 +1,500 @@
+---
+title: "Final project: The Impact of Remote Work on Pet Ownership in NYC"
+author: "Laura Puebla"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: cosmo
+---
+
+### Objective:
+
+The goal of this data collection plan is to obtain comprehensive data on pet adoption and licensing in New York City, specifically focusing on the time period coinciding with the increase in remote work. The collected data will be used to analyze trends and patterns in pet ownership during and after the pandemic.
+
+
+### Motivation:
+
+
+Explore how the shift to remote work during and after the pandemic has influenced pet ownership trends in New York City. This analysis can provide insights into changes in lifestyle, the need for companionship, and the challenges and benefits associated with having pets in a remote work environment.
+
+
+### Data Collection:
+
+Pet Adoption/Shelter Data:
+
+Obtain data from NYC animal shelters or rescue organizations, specifically focusing on the time period coinciding with the increase in remote work. Look for adoption rates and trends.
+
+Pet Licensing Data:
+
+Gather data on new pet licenses issued by the NYC Department of Health during and after the pandemic. This can indicate an increase in pet ownership.
+
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+library(rlang)
+```
+
+### Loading data
+
+```{r}
+# Install and load the required packages if not already installed
+# install.packages("readr")
+library(readr)
+
+# Read the CSV file
+NYC_Dog_Licensing_Dataset_20231213 <- read_csv("C:/Users/aleja/Downloads/NYC_Dog_Licensing_Dataset_20231213.csv")
+
+# View the data
+View(NYC_Dog_Licensing_Dataset_20231213)
+
+```
+
+
+
+```{r}
+NYC_Dog_Licensing_Dataset_20231213
+```
+
+
+Loading dataset NYC_Dog_Licensing_Dataset. This dataset is wide and I am loading directly from github.
+```{r}
+
+
+
+df <- NYC_Dog_Licensing_Dataset_20231213
+
+# First few rows of the data frame
+head(df)
+
+
+```
+
+
+
+```{r}
+summary(df)
+
+```
+
+
+### Tidy up and transformation
+
+Looking for NA in dataset
+```{r}
+# Displaying rows with missing values
+rows_with_missing <- df[apply(is.na(df), 1, any), ]
+print(rows_with_missing)
+
+```
+
+```{r}
+# Replacing NA values in the "AnimalGender" column with "Unknown"
+df$AnimalGender[is.na(df$AnimalGender)] <- "Unknown"
+
+
+```
+
+
+```{r}
+# Replacing NA values in the "AnimalName" column with "Unknown"
+df$AnimalName[is.na(df$AnimalName)] <- "Unknown"
+```
+
+
+
+
+```{r}
+# Displaying rows with missing values
+rows_with_missing <- df[apply(is.na(df), 1, any), ]
+print(rows_with_missing)
+
+```
+
+
+```{r}
+# Replacing NA values and "NAME NOT PROVIDED" with "Unknown" in the "AnimalName" column
+df$AnimalName[is.na(df$AnimalName) | df$AnimalName == "NAME NOT PROVIDED"] <- "Unknown"
+
+```
+
+
+Replacing "." with Unknown
+```{r}
+
+df$AnimalName[df$AnimalName == "."] <- "UNKNOWN"
+
+```
+
+
+
+### Visualization and Analysis
+
+Let's create a subset of the dataset for analysis.
+
+```{r}
+# Creating a subset of df without the LicenseExpiredDate column
+df_subset <- df[, !(colnames(df) %in% c("LicenseExpiredDate"))]
+
+# Printing the structure of the subset
+str(df_subset)
+
+```
+
+```{r}
+df_subset
+```
+
+
+
+Let's see which is the most popular name. Excluding the unknown names.
+```{r}
+# Counting occurrences of each name in AnimalName in df_subset excluding "Unknown" and 'UNKNOWN'
+name_counts_subset <- table(df_subset$AnimalName[df_subset$AnimalName != "Unknown" & df_subset$AnimalName != "UNKNOWN"])
+
+# Finding the most popular name in df_subset excluding "Unknown" and 'UNKNOWN'
+most_popular_name_subset <- names(name_counts_subset)[which.max(name_counts_subset)]
+
+# Printing the most popular name in df_subset excluding "Unknown" and 'UNKNOWN'
+cat("The most popular name in AnimalName column (df_subset) excluding 'Unknown' and 'UNKNOWN' is:", most_popular_name_subset, "\n")
+
+
+
+```
+
+
+```{r}
+# Summary statistics for df_subset
+summary_df_subset <- summary(df_subset)
+
+# Printing the summary statistics
+print("Summary Statistics for df_subset:")
+print(summary_df_subset)
+
+```
+
+
+
+
+Let's explore into key timeframes of the pandemic. Initially, we'll examine the count of dog licenses between 2019, preceding the onset of COVID, and the early months of 2020 when widespread quarantine measures were initiated. Subsequently, we'll analyze the year 2021, encompassing the period during the pandemic, and conclude with an exploration of the year 2022. 
+
+```{r}
+library(ggplot2)
+
+# Creating a new column with the year from LicenseIssuedDate
+df_subset$LicenseIssuedYear <- as.Date(df_subset$LicenseIssuedDate)
+
+# Filtering rows for 2019-2020 and 2021-2022 based on LicenseIssuedYear
+df_2019_2020 <- df_subset[df_subset$LicenseIssuedYear >= as.Date("2019-01-01") & df_subset$LicenseIssuedYear <= as.Date("2020-12-31"), ]
+df_2021_2022 <- df_subset[df_subset$LicenseIssuedYear >= as.Date("2021-01-01") & df_subset$LicenseIssuedYear <= as.Date("2022-12-31"), ]
+
+# Counting the number of dogs in each period
+count_2019_2020 <- nrow(df_2019_2020)
+count_2021_2022 <- nrow(df_2021_2022)
+
+# Creating a data frame for plotting
+plot_data <- data.frame(Year = c("2019-2020", "2021-2022"), Count = c(count_2019_2020, count_2021_2022))
+
+# Creating a bar plot
+ggplot(plot_data, aes(x = Year, y = Count, fill = Year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Number of Dogs by License Issued Year in 2019-2020 vs. 2021-2022",
+       x = "Year",
+       y = "Number of Dogs") +
+  theme_minimal()
+
+```
+
+
+
+It appears that grouping those years together doesn't provide a clearer understanding of any trends. Therefore, let's segregate the data by individual years.
+
+
+
+```{r}
+
+library(ggplot2)
+library(lubridate)
+
+# Parse LicenseIssuedDate as POSIXct
+df_subset$LicenseIssuedDate <- ymd(df_subset$LicenseIssuedDate)
+
+# Add a new column for the year
+df_subset$IssuedYear <- year(df_subset$LicenseIssuedDate)
+
+# Filtering rows for each year
+df_2019 <- df_subset[df_subset$IssuedYear == 2019, ]
+df_2020 <- df_subset[df_subset$IssuedYear == 2020, ]
+df_2021 <- df_subset[df_subset$IssuedYear == 2021, ]
+df_2022 <- df_subset[df_subset$IssuedYear == 2022, ]
+
+# Counting the number of dogs for each year
+count_2019 <- nrow(df_2019)
+count_2020 <- nrow(df_2020)
+count_2021 <- nrow(df_2021)
+count_2022 <- nrow(df_2022)
+
+# Creating a data frame for plotting
+plot_data <- data.frame(Year = c("2019", "2020", "2021", "2022"), Count = c(count_2019, count_2020, count_2021, count_2022))
+
+# Creating a bar plot
+ggplot(plot_data, aes(x = Year, y = Count, fill = Year)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Number of Dogs by License Issued Year",
+       x = "Year",
+       y = "Number of Dogs") +
+  theme_minimal()
+
+
+```
+
+
+
+Our database is current up to the conclusion of 2021-2022. Despite this limitation, the data indicates a surge in dog licenses during the year 2020, followed by a modest decline in the subsequent year, 2021.
+
+
+```{r}
+library(ggplot2)
+
+# Filtering rows for each year
+df_2019 <- df_subset[year(df_subset$LicenseIssuedDate) == 2019, ]
+df_2020 <- df_subset[year(df_subset$LicenseIssuedDate) == 2020, ]
+df_2021 <- df_subset[year(df_subset$LicenseIssuedDate) == 2021, ]
+df_2022 <- df_subset[year(df_subset$LicenseIssuedDate) == 2022, ]
+
+# Counting the number of dogs for each year
+count_2019 <- nrow(df_2019)
+count_2020 <- nrow(df_2020)
+count_2021 <- nrow(df_2021)
+count_2022 <- nrow(df_2022)
+
+# Creating a data frame for plotting
+plot_data <- data.frame(Year = c("2019", "2020", "2021", "2022"), Count = c(count_2019, count_2020, count_2021, count_2022))
+
+# Creating a bar plot
+ggplot(plot_data, aes(x = Year, y = Count, fill = Year)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Number of Dogs by License Issued Year",
+       x = "Year",
+       y = "Number of Dogs") +
+  theme_minimal()
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Filtering rows for each year
+df_2019 <- df_subset[df_subset$LicenseIssuedYear >= as.Date("2019-01-01") & df_subset$LicenseIssuedYear <= as.Date("2019-12-31"), ]
+df_2020 <- df_subset[df_subset$LicenseIssuedYear >= as.Date("2020-01-01") & df_subset$LicenseIssuedYear <= as.Date("2020-12-31"), ]
+df_2021 <- df_subset[df_subset$LicenseIssuedYear >= as.Date("2021-01-01") & df_subset$LicenseIssuedYear <= as.Date("2021-12-31"), ]
+
+# Creating breed distribution tables for each year
+table_2019 <- table(df_2019$BreedName)
+table_2020 <- table(df_2020$BreedName)
+table_2021 <- table(df_2021$BreedName)
+
+# Converting tables to data frames
+df_plot_2019 <- data.frame(Breed = names(table_2019), Count = as.numeric(table_2019), Year = rep("2019", length(table_2019)))
+df_plot_2020 <- data.frame(Breed = names(table_2020), Count = as.numeric(table_2020), Year = rep("2020", length(table_2020)))
+df_plot_2021 <- data.frame(Breed = names(table_2021), Count = as.numeric(table_2021), Year = rep("2021", length(table_2021)))
+
+# Combining data frames
+df_combined <- rbind(df_plot_2019, df_plot_2020, df_plot_2021)
+
+# Getting the top 10 breeds
+top_10_breeds <- df_combined %>%
+  group_by(Year) %>%
+  slice_max(order_by = Count, n = 10)
+
+# Plotting breed distribution for each year
+ggplot(top_10_breeds, aes(x = Breed, y = Count, fill = Breed)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Year, scales = "free") +
+  labs(title = "Top 10 Dog Breeds in 2019, 2020, and 2021",
+       x = "Breed",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+According to the chart, in 2019, Yorkshire Terrier and Shih Tzu were the leading breeds in popularity. The data also indicates that the Unknown breed was prevalent in that year, possibly indicating mixed or rescue dogs. Moving to 2020, there is a noticeable increase in counts for all popular dog breeds, including a significant rise in Yorkshire Terrier and Shih Tzu numbers. Notably, the graph reflects a similar trend for Unknown breed, and a new category labeled "not provided" suggests the possibility of more mixed or rescue dogs. In 2021, Yorkshire Terrier and Shih Tzu continue to maintain their popularity, while the Unknown category disappears, and there is a more even distribution of various breeds. This aligns with information from a New York Times article, which highlights Yorkshire Terrier and Shih Tzu as historically popular breeds, attributed in part to their adaptability to apartment and city living.
+
+https://www.nytimes.com/interactive/2018/02/08/realestate/dogs-of-new-york.html
+
+
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Grouping data by ZipCode and count the number of dogs in each ZipCode
+zip_code_counts <- df_subset %>%
+  group_by(ZipCode) %>%
+  summarise(Count = n())
+
+# Sorting the data by count in descending order
+zip_code_counts <- zip_code_counts[order(-zip_code_counts$Count), ]
+
+# Selecting the top 10 zip codes
+top_10_zip_codes <- head(zip_code_counts, 10)
+
+# Creating a bar plot for the top 10 zip codes
+ggplot(top_10_zip_codes, aes(x = factor(ZipCode), y = Count, fill = factor(ZipCode))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top 10 Zip Codes with the Most Dogs",
+       x = "Zip Code",
+       y = "Number of Dogs") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+library(dplyr)
+
+# Assuming df is your dataframe with the 'ZIP Code' column
+df_subset <- df_subset %>%
+  mutate(Borough = case_when(
+    between(`ZipCode`, 10001, 10282) ~ 'Manhattan',
+    between(`ZipCode`, 10301, 10314) ~ 'Staten Island',
+    between(`ZipCode`, 10451, 10475) ~ 'Bronx',
+    between(`ZipCode`, 11004, 11109) | between(`ZipCode`, 11351, 11697) ~ 'Queens',
+    between(`ZipCode`, 11201, 11256) ~ 'Brooklyn',
+    TRUE ~ 'Other'
+  ))
+
+
+```
+
+
+
+```{r}
+df_subset
+```
+
+
+```{r}
+summary(df_subset)
+```
+
+
+
+```{r}
+
+library(ggplot2)
+
+# Filtering for 2019 and remove rows with missing or problematic LicenseIssuedDate
+df_2019 <- df_subset %>%
+  filter(!is.na(LicenseIssuedDate) & year(LicenseIssuedDate) == 2019)
+
+# Counting the number of licenses for each Borough
+df_counts_2019 <- df_2019 %>%
+  group_by(Borough) %>%
+  summarise(TotalLicenses = n())
+
+# Plotting the bar chart
+ggplot(df_counts_2019, aes(x = Borough, y = TotalLicenses, fill = as.factor(Borough))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Total Dog Licenses in 2019 by Borough",
+       x = "Borough",
+       y = "Total Licenses",
+       fill = "Borough") +
+  theme_minimal()
+
+
+```
+
+
+
+```{r}
+# Filtering the data for the year 2020
+df_2020 <- df_subset[df_subset$LicenseIssuedDate >= as.Date("2020-01-01") & df_subset$LicenseIssuedDate <= as.Date("2020-12-31"), ]
+
+# Plotting the bar chart for 2020
+library(ggplot2)
+
+ggplot(df_2020, aes(x = Borough)) +
+  geom_bar(fill = "lightgreen") +
+  labs(title = "Distribution of Dog Licenses in 2020 by Borough",
+       x = "Borough",
+       y = "Number of Licenses") +
+  theme_minimal()
+
+```
+
+
+```{r}
+# Filtering the data for the year 2021
+df_2021 <- df_subset[df_subset$LicenseIssuedDate >= as.Date("2021-01-01") & df_subset$LicenseIssuedDate <= as.Date("2021-12-31"), ]
+
+# Plotting the bar chart for 2021
+library(ggplot2)
+
+ggplot(df_2021, aes(x = Borough)) +
+  geom_bar(fill = "lightcoral") +
+  labs(title = "Distribution of Dog Licenses in 2021 by Borough",
+       x = "Borough",
+       y = "Number of Licenses") +
+  theme_minimal()
+
+```
+
+
+```{r}
+
+# Selecting relevant columns for clustering
+df_cluster <- df_subset[, c("AnimalBirthYear", "ZipCode", "LicenseIssuedDate")]
+
+# Handling missing values (replace with mean or other strategies)
+df_cluster[is.na(df_cluster)] <- 0  # Replace NA with 0 (you might want to use a different strategy)
+
+# Scaling numerical features
+scaled_data <- scale(df_cluster[, c("AnimalBirthYear", "ZipCode")])
+
+# K-means clustering
+k <- 3  # Number of clusters (you can adjust this)
+set.seed(123)  # Set seed for reproducibility
+kmeans_result <- kmeans(scaled_data, centers = k)
+
+# Adding cluster labels to the original dataframe
+df_subset$Cluster <- as.factor(kmeans_result$cluster)
+
+# Plotting the clusters
+library(ggplot2)
+
+ggplot(df_subset, aes(x = AnimalBirthYear, y = ZipCode, color = Cluster)) +
+  geom_point() +
+  labs(title = "K-means Clustering of Dog License Data",
+       x = "Animal Birth Year",
+       y = "Zip Code",
+       color = "Cluster") +
+  theme_minimal()
+
+```
+
+
+
+
+
+
+
+### Conclusion
+-The dataset provides insights into the temporal dynamics of pet adoption and licensing, particularly during the period coinciding with the rise of remote work.
+-The data sheds light on the geographical distribution of pet ownership in different boroughs of New York City, offering valuable information for localized pet management strategies.
+-The findings from this data collection plan lay the groundwork for future research and decision-making processes related to urban pet management, especially in the context of evolving work trends.
+
+In summary, this exploration of dog licensing data in New York City provides valuable insights into the dynamics of dog ownership in different boroughs and over time. The findings serve as a foundation for further research and decision-making processes related to urban pet management.
+
+
+### References
+NYC Dog Licensing Dataset, https://data.cityofnewyork.us/Health/NYC-Dog-Licensing-Dataset/nu7n-tubp
+Animal Care centers of New York, https://www.nycacc.org/
+
+
